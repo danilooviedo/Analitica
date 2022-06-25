@@ -37,7 +37,7 @@ El documento Markdown deberá contener el proceso técnico que el participante h
 ***
 ### 1. El nombre de usuario debe ser la letra inicial del primer nombre y su apellido Ejm: Agustin Martinez (amartinez)
 nombre de usuario: dovido
-***
+
 #### NOTA: 
 Es necesario realizar primero el punto 3 ya que aqui se guardara toda la informacion que se ala desde los pipeline.
 ***
@@ -48,7 +48,7 @@ una vez dentro debemos ir a la sección "Almacenamiento de Datos" => "Contenedor
 ![image](https://user-images.githubusercontent.com/67159200/175754888-c5cba07a-ed65-42a3-908d-73e786e0b800.png)
 Lugo navegaremos en las carpetas hasta llegar a raw; damos click en "+ Agregar directorio" y en este ponemos el nombre de la carpeta; para mi caso en base a lo solicitado es "doviedo" y damos click en crear
 ![image](https://user-images.githubusercontent.com/67159200/175754925-60900719-aea4-4dc5-bb97-a38b6df07ff3.png)
-
+****
 ### 2. Cada pipeline de ADF debe anteponer el nombre de usuario seguido de pipeline Ejm: amartinez_pipeline
 Para llegar a crear un pipeline de tipo EL debemos previamente tener configurado las bases de Origen y destino; a continuación se explica como crearlas.
 
@@ -81,23 +81,66 @@ Para crear el pipeline se siguió los siguientes pasos:
   ![image](https://user-images.githubusercontent.com/67159200/175755133-d0b6aa14-0300-4e30-a336-c4c4db36d323.png)
   4. podemos ver una vista previa de la data a cargar
   ![image](https://user-images.githubusercontent.com/67159200/175755146-f890d62f-b03e-40f4-81ba-a8bc325d657e.png)
-  #### 6. escoger el destino que sera nuestro storage configurado previamente
+  #### 5. escoger el destino que sera nuestro storage configurado previamente
      en la configuración se ingresara la "Ruta de acceso de la carpeta"; esta configuramos previamente para guardar rn raw/doviedo
   ![image](https://user-images.githubusercontent.com/67159200/175755244-1742205a-7291-48dc-8946-c425aaf786b9.png)
-  8. Configurar formato de archivos; es importante recalcar que lo mas optimo es usar parquet y snappy
+  6. Configurar formato de archivos; es importante recalcar que lo mas optimo es usar parquet y snappy
   ![image](https://user-images.githubusercontent.com/67159200/175755270-bfbcb125-2278-4621-afba-22889dec547b.png)
-  9. revisaremos un resumen de todo lo configurado y finalizamos (esperar hasta que se ejecute el pipeline)
+  
+  7. damos un nombre al pipeline con el formaro del nombre en base a lo solicitado 
+  ![image](https://user-images.githubusercontent.com/67159200/175755993-227b9540-ef49-4180-a4cd-fbce473521fe.png)
+  8. revisaremos un resumen de todo lo configurado 
+  ![image](https://user-images.githubusercontent.com/67159200/175756008-e0a25d4b-28d2-4882-a888-363bae31e5c5.png)
+  9. Finalizamos (esperar hasta que se ejecute el pipeline)
   ![image](https://user-images.githubusercontent.com/67159200/175755361-7c23615d-e65b-4feb-82c2-20f34c2600e4.png)
 ***
-El Archivo Cliente y Producto se crearon bajo este esquema para el de Factura; al ser una tabla que va a ir creciendo en el tiempo tiene una seccion de configuracion diferente
+El Archivo Cliente y Producto se crearon bajo este esquema para el de Factura y FacturaProducto; al ser una tabla que va a ir creciendo en el tiempo (carga append) tiene una seccion de configuracion diferente
 ***
+#### Pipeline para archivo  Factura y FacturaProducto
+Para esto se crea previamente la carpeta "factura" dentro de la carpeta "doviedo" en el contenedor del almacenamiento de datos para aqui poder ir cargando varios archivos parquet de factura por cada mes
+
+Para la creación del pipeline de factura solo se tiene una variacion y es en el paso de "conjunto de datos" al querer halar la data se escogera la opción "utilizar consulta" y nos aparecerá un recuadro donde ingresaremos el script para cargar el mes necesario
+![image](https://user-images.githubusercontent.com/67159200/175756870-8477fe5b-7438-4430-b1c1-ace2780a4eca.png)
+los siguientes pasos seran los mismos tomando en cuenta lo mencionado antes que factura se guardara en una subcarpeta ya que tendrá la informacion de cada mes separado en diferentes archivos parquet.
+#### Nota:
+si en un futuro se quiere consultar todos los archivos parquet de factura sera suficiente con llamar a la carpeta y automaticamente se hara un tipo union entre los archivos que estan dentro siempre que tenga la misma estructura.
+
+Para evitar crear un pipeline por cada mes de carga de facturación procedemos a modificar el pipeline
+ 1. Arrastramos la actividad "ForEach"
+ 2. Cortamos la actividad "copiar datos" => damos click en la caja "ForEach" en el icono editar activities; esto nos llevara a una subpantalla
+ ![image](https://user-images.githubusercontent.com/67159200/175757678-c038503c-5e6d-466f-b0a3-83e2c5b568c8.png)
+ 3. pegamos la actividad que se encarga de cargar data de factura; para regresar al pipeline donde esta el ForEach damos click en el nombre del pipeline
+ ![image](https://user-images.githubusercontent.com/67159200/175757723-0a6c3699-4eca-4b23-b2a4-2070e5df93a5.png)
+ 4. editar el source donde se guardara el archivo parquet de la factura para que sea parametrizabe; para eso agregamos un nuevo parametro
+ ![image](https://user-images.githubusercontent.com/67159200/175758476-cc637b1a-3cda-4e1d-8b82-96f37c71d596.png)
+ 5. cramos variables una sera un arreglo de meses en formato json y la otra se asignara cada vez que recorre en el ForEach tomando solo un registro
+ variable vAnioMeses
+ ```
+ [{"aniomes":"202201"},{"aniomes":"202202"},{"aniomes":"202203"},{"aniomes":"202204"},{"aniomes":"202205"}]
+ ```  
+ 6. configuramos el "ForEach" para que recorra el arreglo json
+ ![image](https://user-images.githubusercontent.com/67159200/175758872-380e044b-228d-4d3b-8135-da714f0c26b4.png)
+ 7. arrastramos la actividad "establecer variable" y la configuramos para que tome el valor del ForEach.
+ 8. Canbiamos la configuracion de la actividad de copia para que el script de consulta sea dinámico
+ ![image](https://user-images.githubusercontent.com/67159200/175759015-4af1ef86-798f-4e5f-8a16-8c61663a2e7f.png)
+ 10. Para correr el pipeline damos click en "Depurar", mientras se ejecuta no mostrara una ventana del status
+ ![image](https://user-images.githubusercontent.com/67159200/175762503-8088c112-fcac-40cb-b03a-eab02431f736.png)
 
 ***
-***
-***
+### Otra forma de crear un piipeline es ir directo a la pantalla de integrar
 ***
 ![image](https://user-images.githubusercontent.com/67159200/175699066-dd570642-1d38-497e-864e-a507b3ec8cb9.png)
 1. dar click ene l menú de la izquierda en el icono seccion "integrar"
 2. click en el icono "+" para agregar un nuevo canal
 3. poner el nombre según lo solicitado: "doviedo_pipeline"
-4. en seccion "actiidades" arrastrar el ícono "Copiar datos"
+***
+### 4. Los notebooks de Spark deben ser nombrados  {usuario}_notebook
+Para crear un notbook (pnatalla en la que se ingresa codigo para desarrollar) se debe seguir los siguientes pasos:
+dar click en "Desarrollar" => click en "+" para agregar nuevo => clic en notebook
+![image](https://user-images.githubusercontent.com/67159200/175762851-60435563-ec5c-4363-9205-6ec112af46bb.png)
+
+
+
+
+***
+
