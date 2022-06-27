@@ -7,7 +7,7 @@
 ***
 ## Problematica:
 Dado el siguiente modelo analítico.
- 
+![image](https://user-images.githubusercontent.com/67159200/175715268-7a927afe-64ef-4ae8-ba29-f4dfc20c9879.png) 
 El departamento de Marketing, desea enviar una campaña personalizada a cada uno de los clientes, promocionando el producto que más veces han solicitado. Por lo tanto el requerimiento ingresa al departamento de Ingeniería Analítica solicitado que se genere una tabla, con las siguientes columnas:
 
 - Codigo del cliente (rowidcliente)
@@ -16,10 +16,6 @@ El departamento de Marketing, desea enviar una campaña personalizada a cada uno
 - Correo del cliente
 
 Las tablas del modelo analítico proveen los datos transaccionales. Sin embargo los correos electrónicos han sido proporcionados por medio de un archivo CSV el cual se encuentra adjunto.
-
-![image](https://user-images.githubusercontent.com/67159200/175715268-7a927afe-64ef-4ae8-ba29-f4dfc20c9879.png)
-
-
 ***
 ## Lineamientos generales:
 
@@ -139,8 +135,103 @@ Para crear un notbook (pnatalla en la que se ingresa codigo para desarrollar) se
 dar click en "Desarrollar" => click en "+" para agregar nuevo => clic en notebook
 ![image](https://user-images.githubusercontent.com/67159200/175762851-60435563-ec5c-4363-9205-6ec112af46bb.png)
 
-
-
-
 ***
+***
+# Código pyspark para realizar la consulta solicitada que solventa la problematica planteada:
+Para comprobar que el script funcione correctamente he cogido de ejemplo el cliente: recbh5oITyJl9SNGK
+
+importar librerias a usar
+```
+%%pyspark
+from pyspark.sql import functions as F, Window
+from pyspark.sql.functions import explode
+from pyspark.sql.functions import concat,col
+```
+Leer el archivo .csv y guardar en variable DataFrame
+```
+dfClienteCorreo = spark.read.load('abfss://capacitacion@sesacapacitacion.dfs.core.windows.net/synapse/workspaces/synapsecapacitacion/warehouse/raw/doviedo/clientes_correos.csv', format='csv')
+display(dfClienteCorreo.filter(dfClienteCorreo._c0=='recbh5oITyJl9SNGK').limit(100))
+```
+Cargar los archivos parquet que importamos en pasos anteriores y guardar en variable DataFrame
+```
+vPath = 'abfss://capacitacion@sesacapacitacion.dfs.core.windows.net/synapse/workspaces/synapsecapacitacion/warehouse/raw/doviedo/'
+dfCliente = spark.read.load(vPath + 'cliente.parquet', format='parquet')
+dfProducto = spark.read.load(vPath + 'producto.parquet', format='parquet')
+dfFactura = spark.read.load(vPath + 'factura/*.parquet', format='parquet')
+dfFactProducto = spark.read.load(vPath + 'factura_producto/*.parquet', format='parquet')
+```
+Consultar todos los productos comprados por cada cliente
+```
+dfClienteProductos = dfFactura\
+                .join(dfCliente, dfCliente.rowidcliente == dfFactura.rowidcliente)\
+                .join(dfFactProducto, dfFactura.rowidfactura == dfFactProducto.rowidfactura)\
+              .select(dfCliente.rowidcliente, dfFactProducto.rowidproducto)
+```
+Contar cuantos productos ha comprado cada cliente
+```
+dfNumProductosCliente = dfClienteProductos.groupBy('rowidcliente','rowidproducto').count() 
+
+```
+Consultar el producto más vendido a cada cliente
+```
+dfTemp= dfNumProductosCliente.groupBy("rowidcliente").agg(F.max("count"))
+dfProductoMasVendidoCliente = dfNumProductosCliente.alias('t1')\
+                                .join(dfTemp.alias('t2'), (F.col('t1.rowidcliente') == F.col('t2.rowidcliente')) 
+                                                        & (F.col('t1.count') == F.col('t2.max(count)')))\
+                                .select(F.col('t1.rowidcliente'),F.col('t1.rowidproducto'), F.col('t1.count'))
+```
+Validamos el script anterior para comprobar que el producto más vendido es: #recbh5oITyJl9SNGK - Limpieza profunda - 19 y no Limpieza express porque tiene 9
+```
+display(dfClienteProductos.filter( (dfClienteProductos.rowidcliente  == "recbh5oITyJl9SNGK")))
+display(dfProductoMasVendidoCliente.filter(dfProductoMasVendidoCliente.rowidcliente=='recbh5oITyJl9SNGK').limit(100))
+```
+### NOTA
+No se puede agrupar por mas de una columna por eso es necesario hacer un match contra la tabla inicial para sacar el detalle necesitado; el siguiente sctipt no funcionó
+```
+#dfProductoMasVendidoCliente= dfNumProductosCliente.groupBy("rowidcliente",'rowidproducto').agg(F.max("count"))  # => no funciona
+#dfProductoMasVendidoCliente= dfNumProductosCliente.groupBy("rowidcliente",'rowidproducto').agg(F.max("count(rowidproducto)").alias("Valor"))
+```
+consultar todas las veces que el cliente compró el mismo producto (más vendido)
+```
+dfFacturasProductoCliente = dfProductoMasVendidoCliente.alias('tp')\
+            .join(dfFactura.alias('tf'), F.col('tp.rowidcliente') == F.col('tf.rowidcliente'))\
+            .join(dfFactProducto.alias('tfp'), ((F.col('tf.rowidfactura') == F.col('tfp.rowidfactura')) 
+                                    & (F.col('tp.rowidproducto') == F.col('tfp.rowidproducto'))
+                                  )
+                  )\
+            .select(F.col('tp.rowidcliente'), 
+                    F.col('tp.rowidproducto'),
+                    F.col('tf.rowidfactura'), 
+                    F.col('tfp.fecha'))
+
+display(dfFacturasProductoCliente.filter(dfFacturasProductoCliente.rowidcliente=='recbh5oITyJl9SNGK').limit(100))
+
+```
+Encontrar la última fecha que el cliente compró el producto más vendido
+```
+dfMaxFechaCompraProducto= dfFacturasProductoCliente.groupBy("rowidcliente").agg(F.max("fecha").alias('ultimacompra'))
+```
+## Resultado Final 
+```
+dfResult = dfFacturasProductoCliente.alias('t1')\
+            .join(dfMaxFechaCompraProducto.alias('t2'), 
+                    (F.col('t1.rowidcliente') == F.col('t2.rowidcliente')) 
+                  & (F.col('t1.fecha') == F.col('t2.ultimacompra'))
+                )\
+            .join(dfProducto.alias('tp'),
+                    F.col('t1.rowidproducto') == F.col('tp.rowidproducto')
+                )\
+            .join(dfClienteCorreo.alias('tcc'),
+                    F.col('t1.rowidcliente') == F.col('tcc._c0')
+                )\
+            .select(F.col('t1.rowidcliente'), 
+                    F.col('t1.rowidproducto'), 
+                    F.col('tp.producto'), 
+                    F.col('tcc._c1').alias('correo'), 
+                    F.col('t2.ultimacompra'))
+display(dfResult.filter(dfResult.rowidcliente=='recbh5oITyJl9SNGK').limit(100))
+``` 
+***
+cargar en base
+
 
