@@ -232,6 +232,21 @@ dfResult = dfFacturasProductoCliente.alias('t1')\
 display(dfResult.filter(dfResult.rowidcliente=='recbh5oITyJl9SNGK').limit(100))
 ``` 
 ***
-cargar en base
+### 5. La tabla de resultados debe almacenarse en un POOL SQL, en el esquema default con el esquema "tbl_{usuario}"
+Para crear y cargar la data de resultado guardada en el DataFrame dfResult se debe ejecutar el siguiente código
+```
+## CREAR TABLA EN POOL
+dfResult.write.mode("overwrite").saveAsTable("default.tbl_doviedo")
+
+## DIRECTORIO GUARDA PARQUET
+vPathResult = 'abfss://capacitacion@sesacapacitacion.dfs.core.windows.net/synapse/workspaces/synapsecapacitacion/warehouse/raw/doviedo/tbl_doviedo.parquet'
+dfResult.repartition(1).write.mode("overwrite").parquet(vPathResult)
+```
+Podemos validar que se guarda la información en la siguiente pantalla:
+![image](https://user-images.githubusercontent.com/67159200/175853173-14335dfe-1483-499e-9f6c-95382cee4477.png)
+
+Tambien podemos encontrar al en la carpeta doviedo del contenedor
+![image](https://user-images.githubusercontent.com/67159200/175853355-65d88943-5612-4fe8-bda7-0cc84306e2ce.png)
+
 
 
