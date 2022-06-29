@@ -247,6 +247,32 @@ Podemos validar que se guarda la información en la siguiente pantalla:
 
 Tambien podemos encontrar al en la carpeta doviedo del contenedor
 ![image](https://user-images.githubusercontent.com/67159200/175853355-65d88943-5612-4fe8-bda7-0cc84306e2ce.png)
+***
+***
+***
+# pipeline FInal
+para poder dejar todo el proceso en un solo pipeline haremos lo siguiente:
 
+crear pipeline sin necesidad de wizard que utilizamos en los pasos anteriores:
+![image](https://user-images.githubusercontent.com/67159200/176563240-89f855c9-4de6-442f-a1d0-05933cf988f6.png)
+
+posteriormente podemos copiar y pegar todos los pipeline creados anteriormente
+![image](https://user-images.githubusercontent.com/67159200/176563346-a14ed7fc-3b6d-4554-9698-b7fc02b7ba5b.png)
+
+![image](https://user-images.githubusercontent.com/67159200/176563369-1ef738cf-e67b-4c49-9ce9-360e010ba17d.png)
+
+![image](https://user-images.githubusercontent.com/67159200/176563405-51bb6c66-01b8-4865-8b80-f2dae4d903b0.png)
+
+Luego podemos agregar la actividad "Bloc de notas" para que se ejecute el codigo de nuestro note creado previamente y configuramos para que haga referencia al bloc creado:
+
+![image](https://user-images.githubusercontent.com/67159200/176563533-0820d086-0e61-494f-9e39-311f431252ba.png)
+
+por ultimo publicamos el pipeline y podemos ejecutar las veces necesarias para automatizar toda las tareas
+![image](https://user-images.githubusercontent.com/67159200/176563671-9ee11679-068b-4de7-b8a0-f13c2de2eb3a.png)
+
+***
+## NOTA
+no debemos olvidar poner las variables
+podemos crear todos los pipeline en un solo paso cargando mas actividades sin necesidad de crar uno por uno en wizard haciendo el trabajo mas rápido
 
 
